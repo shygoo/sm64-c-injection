@@ -54,7 +54,7 @@ clean:
 ############
 
 $(ROM_OUT): $(LIB_SEC_CUSTOM) $(ROM_IN) $(ASM_N64_WRAP) $(ASM_LINK)
-	$(AS) $(ASM_N64_WRAP) -root .
+	$(AS) $(ASM_N64_WRAP) -root . -sym map.txt
 	$(CRCFIX) $(ROM_OUT)
 
 $(LIB_SEC_CUSTOM): $(O_FILES) | $(LIB_DIR)

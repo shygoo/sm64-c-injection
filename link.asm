@@ -8,10 +8,13 @@
 .org SEC_CUSTOM_RAM
 .area SEC_CUSTOM_SIZE, 0
 
+// Handwritten asm
+
+.include "asm/crash_entry.asm" :: .align 4
+
 // Compiled code
 
-.importlib "lib/libsec_custom.a"
-.align 4
+.importlib "lib/libsec_custom.a" :: .align 4
 
 // Hook wrappers
 

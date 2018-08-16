@@ -7,9 +7,9 @@
 // These addresses may be changed to anywhere that has ample free space
 
 .definelabel SEC_CUSTOM_ROM,  0x007CC6C0
-.definelabel SEC_CUSTOM_RAM,  0x80370000
+.definelabel SEC_CUSTOM_RAM,  0x80400000
 .definelabel SEC_CUSTOM_HEADERSIZE, (SEC_CUSTOM_RAM - SEC_CUSTOM_ROM)
-.definelabel SEC_CUSTOM_SIZE, 0x00006000
+.definelabel SEC_CUSTOM_SIZE, 0x00010000
 
 /********** Existing sections **********/
 

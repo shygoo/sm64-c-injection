@@ -1,0 +1,24 @@
+#ifndef _CRASH_H_
+#define _CRASH_H_
+
+#include <types.h>
+
+extern u32 cop0_get_cause(void);
+extern u32 cop0_get_epc(void);
+extern u32 cop0_get_badvaddr(void);
+
+extern void crash_handler_entry(void);
+
+void generate_exception_preambles(void *newEntry, void *origEntry);
+void show_crash_screen_and_hang(void);
+u8 ascii_to_idx(char c);
+void fb_set_address(void *address);
+void fb_swap(void);
+void fb_fill(int baseX, int baseY, int width, int height);
+void fb_draw_char(int x, int y, u8 idx);
+void fb_draw_char_shaded(int x, int y, u8 idx);
+void fb_print_str(int x, int y, const char *str);
+void fb_print_int_hex(int x, int y, u32 value, int nbits);
+void fb_print_gpr_states(int x, int y, const char* regStrs[], u32 *regContext);
+
+#endif /* _CRASH_H_ */

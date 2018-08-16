@@ -1,11 +1,14 @@
 #include <sm64.h>
 
 #include "hello_world.h"
+#include "crash.h"
+
+extern void __osException(void);
 
 // Called after the custom block is loaded
 void hook_custom_sec_loaded(void)
 {
-    // extra initilisation code can go here
+    generate_exception_preambles(crash_handler_entry, __osException);
 }
 
 // Called from Mario's behavior routine
