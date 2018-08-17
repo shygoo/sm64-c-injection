@@ -105,7 +105,7 @@ void show_crash_screen_and_hang(void)
     {
         fb_print_str(80, 20, "ERROR");
         fb_print_int_hex(80, 30, errno, 8);
-        fb_print_str(98, 30, szErrCodes[errno]);
+        fb_print_str(107, 30, szErrCodes[errno]);
     }
     else
     {
@@ -116,7 +116,7 @@ void show_crash_screen_and_hang(void)
     }
 
     fb_print_str(80, 50, "PC");
-    fb_print_int_hex(98, 50, epc, 32);
+    fb_print_int_hex(108, 50, epc, 32);
 
     if(errno >= 2 && errno <= 5)
     {
@@ -128,12 +128,12 @@ void show_crash_screen_and_hang(void)
         */
         u32 badvaddr = cop0_get_badvaddr();
 
-        fb_print_str(158, 50, "BADVADDR");
-        fb_print_int_hex(212, 50, badvaddr, 32);
+        fb_print_str(188, 50, "VA");
+        fb_print_int_hex(215, 50, badvaddr, 32);
     }
 
     fb_print_gpr_states(80, 70, szGPRegisters1, &exceptionRegContext[6 + 0]);
-    fb_print_gpr_states(158, 70, szGPRegisters2, &exceptionRegContext[6 + 15*2]);
+    fb_print_gpr_states(188, 70, szGPRegisters2, &exceptionRegContext[6 + 15*2]);
 
     fb_swap();
 
@@ -145,22 +145,7 @@ void show_crash_screen_and_hang(void)
 
 u8 ascii_to_idx(char c)
 {
-    if(c >= 'a' && c <= 'z')
-    {
-        return c - 0x57;
-    }
-
-    if(c >= 'A' && c <= 'Z')
-    {
-        return c - 0x37;
-    }
-
-    if(c >= '0' && c <= '9')
-    {
-        return c - 0x30;
-    }
-
-    return 0xFF;
+    return c - 0x20;
 }
 
 void fb_set_address(void *address)
@@ -172,6 +157,9 @@ void fb_swap()
 {
     // update VI frame buffer register
     // todo other registers
+    //*(u32 *)(0xA4400008) = 640;
+    //*(u32 *)(0xA440000C) = 1;
+    //*(u32 *)(0xA440000C) = (u32)fbAddress & 0x00FFFFFF;
     *(u32 *)(0xA4400004) = (u32)fbAddress & 0x00FFFFFF;
 }
 
@@ -193,25 +181,24 @@ void fb_draw_char(int x, int y, u8 idx)
         return;
     }
 
+    const u8 *in = &crashFont[idx*8];
     u16 *out = &fbAddress[y*320 + x];
-    const u8 *in = &crashFont[idx*3];
 
-    for(int nbyte = 0; nbyte < 3; nbyte++)
+    for(int nrow = 0; nrow < 8; nrow++)
     {
-        u8 curbyte = in[nbyte];
+        u8 curbyte = in[nrow];
 
-        for(int nrow = 0; nrow < 2; nrow++)
+        for(int ncol = 0; ncol < 8; ncol++)
         {
-            for(int ncol = 0; ncol < 4; ncol++)
+            u8 px = (curbyte >> (7-ncol)) & 1;
+
+            if(px != 0)
             {
-                u8 px = curbyte & (1 << 7-(nrow*4+ncol));
-                if(px != 0)
-                {
-                    out[ncol] = fbFillColor;
-                }
+                out[ncol] = fbFillColor;
             }
-            out += 320;
         }
+
+        out += 320;
     }
 }
 
@@ -238,13 +225,13 @@ void fb_print_str(int x, int y, const char *str)
 
         if(c == ' ')
         {
-            x += 6;
+            x += 9;
             continue;
         }
 
         idx = ascii_to_idx(c);
         fb_draw_char_shaded(x, y, idx);
-        x += 6;
+        x += 9;
     }
 }
 
@@ -254,10 +241,20 @@ void fb_print_int_hex(int x, int y, u32 value, int nbits)
 
     while(nbits >= 0)
     {
-        int idx = (value >> nbits) & 0xF;
+        int nib = ((value >> nbits) & 0xF);
+        u8 idx;
+
+        if(nib > 9)
+        {
+            idx = ('A'-0x20) + (nib-0xa);
+        }
+        else
+        {
+            idx = ('0'-0x20) + nib;
+        }
 
         fb_draw_char_shaded(x, y, idx);
-        x += 6;
+        x += 9;
 
         nbits -= 4;
     }
@@ -273,7 +270,7 @@ void fb_print_gpr_states(int x, int y, const char* regNames[], u32 *regContext)
         }
 
         fb_print_str(x, y, regNames[i]);
-        fb_print_int_hex(x + (3*6), y, regContext[i*2+1], 32);
+        fb_print_int_hex(x + (3*9), y, regContext[i*2+1], 32);
         y += 10;
     }
 }
