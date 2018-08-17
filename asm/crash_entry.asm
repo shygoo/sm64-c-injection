@@ -1,20 +1,44 @@
-.definelabel COP0_CAUSE, 12
-.definelabel COP0_EPC, 13
-.definelabel COP0_BADVADDR, 7
+.definelabel COP0_CAUSE, 13
+.definelabel COP0_EPC, 14
+.definelabel COP0_BADVADDR, 8
 
 //.definelabel exceptionRegContext, 0x80365F40 // JP D_80365F40
-.definelabel exceptionRegContext, 0x803672B0 // US
+//.definelabel exceptionRegContext, 0x803672B0 // US
+
+//.definelabel __osException, 0x80327650 // US
+
+crashFont: // PIXEL8 font by fraser
+    .incbin "img/PIXEL8.FNT"
+
+exceptionRegContext: .fill 0x108
+
+pAssertFile: .dw 0
+nAssertLine: .dw 0
+pAssertExpression: .dw 0
+nAssertStopProgram: .dw 0
+
+_n64_assert:
+    sw   a0, pAssertFile
+    sw   a1, nAssertLine
+    sw   a2, pAssertExpression
+    sw   a3, nAssertStopProgram
+    beqz a3, @@end
+    nop
+    syscall // trigger crash screen
+    @@end:
+    jr ra
+    nop
 
 cop0_get_cause:
-    jr ra
+    jr   ra
     mfc0 v0, cause
 
 cop0_get_epc:
-    jr ra
+    jr   ra
     mfc0 v0, epc
 
 cop0_get_badvaddr:
-    jr ra
+    jr   ra
     mfc0 v0, badvaddr
 
 // If the error code field of cop0's cause register is non-zero,
@@ -22,7 +46,7 @@ cop0_get_badvaddr:
 //
 // If there wasn't an error, continue to the original handler
 
-crash_handler_entry:
+__crash_handler_entry:
     la    k0, exceptionRegContext
     sd    r0, 0x018 (k0)
     sd    at, 0x020 (k0)
@@ -96,5 +120,7 @@ crash_handler_entry:
     ld    sp, 0x0F0 (k0)
     ld    s8, 0x0F8 (k0)
     ld    ra, 0x100 (k0)
-    j     0x80000188 // run the original handler
+    lui   k0, hi(__osException)
+    addiu k0, k0, lo(__osException)
+    jr    k0 // run the original handler
     nop

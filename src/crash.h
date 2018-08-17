@@ -7,9 +7,11 @@ extern u32 cop0_get_cause(void);
 extern u32 cop0_get_epc(void);
 extern u32 cop0_get_badvaddr(void);
 
-extern void crash_handler_entry(void);
+extern void _n64_assert(const char* pFile, int nLine, const char *pExpression, int nStopProgram);
 
-void generate_exception_preambles(void *newEntry, void *origEntry);
+extern u8 __crash_handler_entry[];
+
+void generate_exception_preambles(void *entryPoint);
 void show_crash_screen_and_hang(void);
 u8 ascii_to_idx(char c);
 void fb_set_address(void *address);
