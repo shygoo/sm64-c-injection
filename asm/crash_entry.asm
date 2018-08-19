@@ -7,8 +7,9 @@
 
 //.definelabel __osException, 0x80327650 // US
 
-crashFont: // PIXEL8 font by fraser
-    .incbin "img/PIXEL8.FNT"
+crashFont:
+    .incbin "img/crash_font.bin"
+    .align 4
 
 exceptionRegContext: .fill 0x108
 

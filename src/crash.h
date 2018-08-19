@@ -19,7 +19,8 @@ void fb_swap(void);
 void fb_fill(int baseX, int baseY, int width, int height);
 void fb_draw_char(int x, int y, u8 idx);
 void fb_draw_char_shaded(int x, int y, u8 idx);
-void fb_print_str(int x, int y, const char *str);
+int fb_print_str(int x, int y, const char *str);
+int fb_print_uint(int x, int y, u32 value);
 void fb_print_int_hex(int x, int y, u32 value, int nbits);
 void fb_print_gpr_states(int x, int y, const char* regStrs[], u32 *regContext);
 

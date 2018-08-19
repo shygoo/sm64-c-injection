@@ -10,19 +10,8 @@ extern char *pAssertExpression;
 extern int   nAssertStopProgram;
 
 u16 fbFillColor = 0xFFFF;
+u16 fbShadeColor = 0x0000;
 u16 *fbAddress = NULL;
-
-//const u8 crashFont[] = {
-//    0x69, 0x99, 0x96, 0x62, 0x22, 0x27, 0x69, 0x16, 0x8F, 0x69, 0x21, 0x96,
-//    0x35, 0x9F, 0x11, 0xF8, 0xE1, 0x96, 0x68, 0xE9, 0x96, 0xF1, 0x24, 0x44,
-//    0x69, 0x69, 0x96, 0x69, 0x97, 0x16, 0x69, 0x9F, 0x99, 0xE9, 0xE9, 0x9E,
-//    0x69, 0x88, 0x96, 0xE9, 0x99, 0x9E, 0xF8, 0xE8, 0x8F, 0xF8, 0xE8, 0x88,
-//    0x69, 0x8B, 0x96, 0x99, 0x9F, 0x99, 0x72, 0x22, 0x27, 0x72, 0x22, 0xA4,
-//    0x99, 0xAC, 0xA9, 0x88, 0x88, 0x8F, 0x9F, 0xDD, 0x99, 0x99, 0xDB, 0x99,
-//    0x69, 0x99, 0x96, 0xE9, 0x9E, 0x88, 0x69, 0x9D, 0x61, 0xE9, 0x9E, 0x99,
-//    0x69, 0x42, 0x96, 0xF2, 0x22, 0x22, 0x99, 0x99, 0x96, 0x99, 0x9A, 0xA4,
-//    0x99, 0xBB, 0xF9, 0x99, 0x69, 0x99, 0x99, 0x96, 0x22, 0xF1, 0x24, 0x8F
-//};
 
 extern u8 crashFont[];
 
@@ -59,7 +48,7 @@ const char *szGPRegisters2[] = {
 /*
     Generates new preamble code at the exception vectors (0x000, 0x180)
 
-    eg: generate_exception_preambles(crash_handler_entry, __osException);
+    eg: generate_exception_preambles(crash_handler_entry);
 
     000: lui   k0, hi(crash_handler_entry)
     004: addiu k0, k0, lo(crash_handler_entry)
@@ -89,6 +78,16 @@ void generate_exception_preambles(void *entryPoint)
     }
 }
 
+int crash_strlen(char *str)
+{
+    int len = 0;
+    while(*str++)
+    {
+        len++;
+    }
+    return len;
+}
+
 void show_crash_screen_and_hang(void)
 {
     fb_set_address((void*)(*(u32 *)0xA4400004 | 0x80000000)); // replace me
@@ -98,25 +97,34 @@ void show_crash_screen_and_hang(void)
 
     u8 errno = (cause >> 2) & 0x1F;
     
-    fbFillColor = 0x6252;
-    fb_fill(10, 10, 300, 220);
-
     if(nAssertStopProgram == 0)
     {
+        fbFillColor = 0x6253;
+        fb_fill(10, 10, 300, 220);
+
         fb_print_str(80, 20, "ERROR");
         fb_print_int_hex(80, 30, errno, 8);
         fb_print_str(107, 30, szErrCodes[errno]);
     }
     else
     {
+        fbFillColor = 0x5263;
+        fb_fill(10, 10, 300, 220);
+
         fb_print_str(80, 20, "ASSERT");
-        fb_print_int_hex(80, 30, nAssertLine, 16);
-        fb_print_str(80 + 5*6, 30, pAssertFile);
+        
+        int afterFileX = fb_print_str(80, 30, pAssertFile);
+        fb_print_str(afterFileX, 30, ":");
+        fb_print_uint(afterFileX + 5, 30, nAssertLine);
+
+        int exprBoxWidth = (crash_strlen(pAssertExpression) * 5) + 2;
+        fbFillColor = 0x0001;
+        fb_fill(80-1, 40-1, exprBoxWidth, 10);
         fb_print_str(80, 40, pAssertExpression);
     }
 
     fb_print_str(80, 50, "PC");
-    fb_print_int_hex(108, 50, epc, 32);
+    fb_print_int_hex(95, 50, epc, 32);
 
     if(errno >= 2 && errno <= 5)
     {
@@ -133,7 +141,7 @@ void show_crash_screen_and_hang(void)
     }
 
     fb_print_gpr_states(80, 70, szGPRegisters1, &exceptionRegContext[6 + 0]);
-    fb_print_gpr_states(188, 70, szGPRegisters2, &exceptionRegContext[6 + 15*2]);
+    fb_print_gpr_states(145, 70, szGPRegisters2, &exceptionRegContext[6 + 15*2]);
 
     fb_swap();
 
@@ -157,9 +165,6 @@ void fb_swap()
 {
     // update VI frame buffer register
     // todo other registers
-    //*(u32 *)(0xA4400008) = 640;
-    //*(u32 *)(0xA440000C) = 1;
-    //*(u32 *)(0xA440000C) = (u32)fbAddress & 0x00FFFFFF;
     *(u32 *)(0xA4400004) = (u32)fbAddress & 0x00FFFFFF;
 }
 
@@ -176,29 +181,24 @@ void fb_fill(int baseX, int baseY, int width, int height)
 
 void fb_draw_char(int x, int y, u8 idx)
 {
-    if(idx == 0xFF)
-    {
-        return;
-    }
-
-    const u8 *in = &crashFont[idx*8];
     u16 *out = &fbAddress[y*320 + x];
+    const u8 *in = &crashFont[idx*3];
 
-    for(int nrow = 0; nrow < 8; nrow++)
+    for(int nbyte = 0; nbyte < 3; nbyte++)
     {
-        u8 curbyte = in[nrow];
-
-        for(int ncol = 0; ncol < 8; ncol++)
+        u8 curbyte = in[nbyte];
+        for(int nrow = 0; nrow < 2; nrow++)
         {
-            u8 px = (curbyte >> (7-ncol)) & 1;
-
-            if(px != 0)
+            for(int ncol = 0; ncol < 4; ncol++)
             {
-                out[ncol] = fbFillColor;
+                u8 px = curbyte & (1 << 7-(nrow*4+ncol));
+                if(px != 0)
+                {
+                    out[ncol] = fbFillColor;
+                }
             }
+            out += 320;
         }
-
-        out += 320;
     }
 }
 
@@ -211,10 +211,11 @@ void fb_draw_char_shaded(int x, int y, u8 idx)
     fb_draw_char(x, y, idx);
 }
 
-void fb_print_str(int x, int y, const char *str)
+int fb_print_str(int x, int y, const char *str)
 {
     while(1)
     {
+        int yoffs = 0;
         u8 idx;
         char c = *str++;
 
@@ -225,14 +226,31 @@ void fb_print_str(int x, int y, const char *str)
 
         if(c == ' ')
         {
-            x += 9;
+            x += 5;
             continue;
         }
 
+        switch(c)
+        {
+        case 'j':
+        case 'g':
+        case 'p':
+        case 'q':
+        case 'y':
+        case 'Q':
+            yoffs = 1;
+            break;
+        case ',':
+            yoffs = 2;
+            break;
+        }
+
         idx = ascii_to_idx(c);
-        fb_draw_char_shaded(x, y, idx);
-        x += 9;
+        fb_draw_char_shaded(x, y + yoffs, idx);
+        x += 5;
     }
+
+    return x;
 }
 
 void fb_print_int_hex(int x, int y, u32 value, int nbits)
@@ -254,10 +272,32 @@ void fb_print_int_hex(int x, int y, u32 value, int nbits)
         }
 
         fb_draw_char_shaded(x, y, idx);
-        x += 9;
+        x += 5;
 
         nbits -= 4;
     }
+}
+
+int fb_print_uint(int x, int y, u32 value)
+{
+    int nchars = 0;
+
+    int v = value;
+    while(v /= 10)
+    {
+        nchars++;
+    }
+
+    x += nchars * 5;
+
+    for(int i = nchars; i >= 0; i--)
+    {
+        fb_draw_char_shaded(x, y, ('0'-0x20)+(value%10));
+        value /= 10;
+        x -= 5;
+    }
+
+    return (x + nchars*5);
 }
 
 void fb_print_gpr_states(int x, int y, const char* regNames[], u32 *regContext)
@@ -270,7 +310,7 @@ void fb_print_gpr_states(int x, int y, const char* regNames[], u32 *regContext)
         }
 
         fb_print_str(x, y, regNames[i]);
-        fb_print_int_hex(x + (3*9), y, regContext[i*2+1], 32);
+        fb_print_int_hex(x + 15, y, regContext[i*2+1], 32);
         y += 10;
     }
 }
