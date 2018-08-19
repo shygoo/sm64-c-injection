@@ -5,7 +5,7 @@
 
 //extern u8 __osException[];
 
-#define N64_ASSERT(exp) (exp) ? ((void*)0) : _n64_assert(__FILE__, __LINE__, #exp, 1);
+
 
 // Called after the custom block is loaded
 void hook_custom_sec_loaded(void)
