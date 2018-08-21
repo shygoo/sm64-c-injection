@@ -3,17 +3,16 @@
 #include "crash.h"
 
 extern u32 exceptionRegContext[];
+extern u8 crashFont[];
 
 extern char *pAssertFile;
 extern int   nAssertLine;
 extern char *pAssertExpression;
 extern int   nAssertStopProgram;
 
-u16 fbFillColor = 0xFFFF;
-u16 fbShadeColor = 0x0000;
+u16  fbFillColor = 0xFFFF;
+u16  fbShadeColor = 0x0001;
 u16 *fbAddress = NULL;
-
-extern u8 crashFont[];
 
 const char *szErrCodes[] = {
     "INTERRUPT",
@@ -47,34 +46,28 @@ const char *szGPRegisters2[] = {
 
 /*
     Generates new preamble code at the exception vectors (0x000, 0x180)
-
-    eg: generate_exception_preambles(crash_handler_entry);
-
-    000: lui   k0, hi(crash_handler_entry)
-    004: addiu k0, k0, lo(crash_handler_entry)
-    008: jr    k0
-    00C: nop
+    eg: generate_exception_preambles(__crash_handler_entry);
 */
 void generate_exception_preambles(void *entryPoint)
 {
-    u8 *mem = (u8 *) 0xA0000000;
-    int offs = 0;
+    u32 *out = (u32 *) MIPS_KSEG1;
 
-    u16 hi = (u32)entryPoint >> 16;
-    u16 lo = (u32)entryPoint & 0xFFFF;
+    u16 entryPointHi = (u32)entryPoint >> 16;
+    u16 entryPointlo = (u32)entryPoint & 0xFFFF;
 
-    if(lo & 0x8000)
+    if(entryPointlo & 0x8000)
     {
-        hi++;
+        entryPointHi++;
     }
 
     for(int i = 0; i < 2; i++)
     {
-        *(u32 *) &mem[offs+0x00] = 0x3C1A0000 | hi;
-        *(u32 *) &mem[offs+0x04] = 0x275A0000 | lo;
-        *(u32 *) &mem[offs+0x08] = 0x03400008;
-        *(u32 *) &mem[offs+0x0C] = 0x00000000;
-        offs += 0x180;
+        out[0] = 0x3C1A0000 | entryPointHi; // 0x00: lui   k0, hi(entryPoint)
+        out[1] = 0x275A0000 | entryPointlo; // 0x04: addiu k0, k0, lo(entryPoint)
+        out[2] = 0x03400008;                // 0x08: jr    k0
+        out[3] = 0x00000000;                // 0x0C: nop
+
+        out += 0x180 / sizeof(u32);
     }
 }
 
@@ -90,58 +83,79 @@ int crash_strlen(char *str)
 
 void show_crash_screen_and_hang(void)
 {
-    fb_set_address((void*)(*(u32 *)0xA4400004 | 0x80000000)); // replace me
+    //u32 benchStart, benchStop;
+    u32 cause, epc, errno;
 
-    u32 cause = cop0_get_cause();
-    u32 epc = cop0_get_epc();
+    //benchStart = cop0_get_count();
+    cause = cop0_get_cause();
+    epc = cop0_get_epc();
+    errno = (cause >> 2) & 0x1F;
 
-    u8 errno = (cause >> 2) & 0x1F;
-    
+    fb_set_buffer(FB_DEFAULT_ADDR);
+
+    fb_set_shade_color(0, 0, 0);
+
     if(nAssertStopProgram == 0)
     {
-        fbFillColor = 0x6253;
-        fb_fill(10, 10, 300, 220);
+        // show error screen
+
+        fb_set_fill_color(12, 9, 9);
+        fb_fill_rect(0, 0, CRASH_SCREEN_W, CRASH_SCREEN_H);
+
+        fb_set_fill_color(31, 31, 31);
 
         fb_print_str(80, 20, "ERROR");
         fb_print_int_hex(80, 30, errno, 8);
         fb_print_str(107, 30, szErrCodes[errno]);
+
+        // show badvaddr if relevant
+        if(errno >= 2 && errno <= 5)
+        {
+            //2 UNMAPPED LOAD ADDR
+            //3 UNMAPPED STORE ADDR
+            //4 BAD LOAD ADDR
+            //5 BAD STORE ADDR
+
+            u32 badvaddr = cop0_get_badvaddr();
+
+            fb_print_str(145, 50, "VA");
+            fb_print_int_hex(172, 50, badvaddr, 32);
+        }
+
+        // print out gpr registers
+        fb_print_gpr_states(80, 70, szGPRegisters1, &exceptionRegContext[6 + 0]);
+        fb_print_gpr_states(145, 70, szGPRegisters2, &exceptionRegContext[6 + 15*2]);
     }
     else
     {
-        fbFillColor = 0x5263;
-        fb_fill(10, 10, 300, 220);
+        // show assert screen
 
+        int afterFileX, exprBoxWidth;
+
+        fb_set_fill_color(10, 9, 17);
+        fb_fill_rect(0, 0, CRASH_SCREEN_W, CRASH_SCREEN_H);
+
+        fb_set_fill_color(31, 31, 31);
         fb_print_str(80, 20, "ASSERT");
         
-        int afterFileX = fb_print_str(80, 30, pAssertFile);
+        afterFileX = fb_print_str(80, 30, pAssertFile);
         fb_print_str(afterFileX, 30, ":");
         fb_print_uint(afterFileX + 5, 30, nAssertLine);
 
-        int exprBoxWidth = (crash_strlen(pAssertExpression) * 5) + 2;
-        fbFillColor = 0x0001;
-        fb_fill(80-1, 40-1, exprBoxWidth, 10);
+        exprBoxWidth = (crash_strlen(pAssertExpression) * 5) + 2;
+        fb_set_fill_color(0, 0, 0);
+        fb_fill_rect(80-1, 40-1, exprBoxWidth, 10);
+
+        fb_set_fill_color(31, 31, 31);
         fb_print_str(80, 40, pAssertExpression);
     }
 
     fb_print_str(80, 50, "PC");
     fb_print_int_hex(95, 50, epc, 32);
-
-    if(errno >= 2 && errno <= 5)
-    {
-        /*
-        2 UNMAPPED LOAD ADDR
-        3 UNMAPPED STORE ADDR
-        4 BAD LOAD ADDR
-        5 BAD STORE ADDR
-        */
-        u32 badvaddr = cop0_get_badvaddr();
-
-        fb_print_str(188, 50, "VA");
-        fb_print_int_hex(215, 50, badvaddr, 32);
-    }
-
-    fb_print_gpr_states(80, 70, szGPRegisters1, &exceptionRegContext[6 + 0]);
-    fb_print_gpr_states(145, 70, szGPRegisters2, &exceptionRegContext[6 + 15*2]);
+    
+    //benchStop = cop0_get_count();
+    // show num cycles it took to render
+    //fb_print_uint(20, 20, benchStop - benchStart); 
 
     fb_swap();
 
@@ -151,64 +165,63 @@ void show_crash_screen_and_hang(void)
     }
 }
 
-u8 ascii_to_idx(char c)
+void fb_invalidate(void)
 {
-    return c - 0x20;
-}
-
-void fb_set_address(void *address)
-{
-    fbAddress = (u16 *) address;
+    // todo less stupid way of doing this
+    for(int i = 0; i < (CRASH_SCREEN_W * CRASH_SCREEN_H); i++)
+    {
+        volatile u16 t = fbAddress[i];
+    }
 }
 
 void fb_swap()
 {
-    // update VI frame buffer register
+    fb_invalidate();
+
     // todo other registers
-    *(u32 *)(0xA4400004) = (u32)fbAddress & 0x00FFFFFF;
+    vi_set_fb_vaddr(fbAddress);
 }
 
-void fb_fill(int baseX, int baseY, int width, int height)
+void fb_fill_rect(int baseX, int baseY, int width, int height)
 {
     for(int y = baseY; y < baseY + height; y++)
     {
         for(int x = baseX; x < baseX + width; x++)
         {
-            fbAddress[y*320+x] = fbFillColor;
+            fbAddress[y*CRASH_SCREEN_W+x] = fbFillColor;
         }
     }
 }
 
 void fb_draw_char(int x, int y, u8 idx)
 {
-    u16 *out = &fbAddress[y*320 + x];
+    u16 *out = &fbAddress[y*CRASH_SCREEN_W + x];
     const u8 *in = &crashFont[idx*3];
 
     for(int nbyte = 0; nbyte < 3; nbyte++)
     {
         u8 curbyte = in[nbyte];
+
         for(int nrow = 0; nrow < 2; nrow++)
         {
             for(int ncol = 0; ncol < 4; ncol++)
             {
                 u8 px = curbyte & (1 << 7-(nrow*4+ncol));
+
                 if(px != 0)
                 {
                     out[ncol] = fbFillColor;
+
+                    if(fbShadeColor & 1)
+                    {
+                        out[ncol-1 + CRASH_SCREEN_W] = fbShadeColor;
+                    }
                 }
             }
-            out += 320;
+
+            out += CRASH_SCREEN_W;
         }
     }
-}
-
-void fb_draw_char_shaded(int x, int y, u8 idx)
-{
-    fbFillColor = 0x0001;
-    fb_draw_char(x - 1, y + 1, idx);
-
-    fbFillColor = 0xFFFF;
-    fb_draw_char(x, y, idx);
 }
 
 int fb_print_str(int x, int y, const char *str)
@@ -216,7 +229,6 @@ int fb_print_str(int x, int y, const char *str)
     while(1)
     {
         int yoffs = 0;
-        u8 idx;
         char c = *str++;
 
         if(c == '\0')
@@ -245,8 +257,7 @@ int fb_print_str(int x, int y, const char *str)
             break;
         }
 
-        idx = ascii_to_idx(c);
-        fb_draw_char_shaded(x, y + yoffs, idx);
+        fb_draw_char(x, y + yoffs, ctoidx(c));
         x += 5;
     }
 
@@ -264,14 +275,14 @@ void fb_print_int_hex(int x, int y, u32 value, int nbits)
 
         if(nib > 9)
         {
-            idx = ('A'-0x20) + (nib-0xa);
+            idx = ctoidx('A') + (nib-0xA);
         }
         else
         {
-            idx = ('0'-0x20) + nib;
+            idx = ctoidx('0') + nib;
         }
 
-        fb_draw_char_shaded(x, y, idx);
+        fb_draw_char(x, y, idx);
         x += 5;
 
         nbits -= 4;
@@ -292,7 +303,7 @@ int fb_print_uint(int x, int y, u32 value)
 
     for(int i = nchars; i >= 0; i--)
     {
-        fb_draw_char_shaded(x, y, ('0'-0x20)+(value%10));
+        fb_draw_char(x, y, ctoidx('0') + (value % 10));
         value /= 10;
         x -= 5;
     }

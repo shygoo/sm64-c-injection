@@ -1,6 +1,7 @@
 .definelabel COP0_CAUSE, 13
 .definelabel COP0_EPC, 14
 .definelabel COP0_BADVADDR, 8
+.definelabel COP0_COUNT, 9
 
 //.definelabel exceptionRegContext, 0x80365F40 // JP D_80365F40
 //.definelabel exceptionRegContext, 0x803672B0 // US
@@ -41,6 +42,11 @@ cop0_get_epc:
 cop0_get_badvaddr:
     jr   ra
     mfc0 v0, badvaddr
+
+//cop0_get_count:
+//    jr   ra
+//    mfc0 v0, count
+
 
 // If the error code field of cop0's cause register is non-zero,
 // draw crash details to the screen and hang
