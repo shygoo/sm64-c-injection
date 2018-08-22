@@ -106,7 +106,7 @@ void show_crash_screen_and_hang(void)
 
         fb_print_str(80, 20, "ERROR");
         fb_print_int_hex(80, 30, errno, 8);
-        fb_print_str(107, 30, szErrCodes[errno]);
+        fb_print_str(95, 30, szErrCodes[errno]);
 
         // show badvaddr if relevant
         if(errno >= 2 && errno <= 5)
@@ -119,7 +119,7 @@ void show_crash_screen_and_hang(void)
             u32 badvaddr = cop0_get_badvaddr();
 
             fb_print_str(145, 50, "VA");
-            fb_print_int_hex(172, 50, badvaddr, 32);
+            fb_print_int_hex(160, 50, badvaddr, 32);
         }
 
         // print out gpr registers
