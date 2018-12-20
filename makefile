@@ -70,10 +70,10 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 # Generate a wrapper asm file for armips
 
 $(ASM_N64_WRAP): makefile | $(TMP_DIR)
-	echo ".n64" > $(ASM_N64_WRAP)
-	echo ".open \"$(ROM_IN)\", \"$(ROM_OUT)\", 0" >> $(ASM_N64_WRAP)
-	echo ".include \"$(ASM_LINK)\"" >> $(ASM_N64_WRAP)
-	echo ".close" >> $(ASM_N64_WRAP)
+	printf ".n64\n" > $(ASM_N64_WRAP)
+	printf ".open \"$(ROM_IN)\", \"$(ROM_OUT)\", 0\n" >> $(ASM_N64_WRAP)
+	printf ".include \"$(ASM_LINK)\"\n" >> $(ASM_N64_WRAP)
+	printf ".close\n" >> $(ASM_N64_WRAP)
 
 ############
 
