@@ -19,6 +19,20 @@ nAssertLine: .dw 0
 pAssertExpression: .dw 0
 nAssertStopProgram: .dw 0
 
+// use self modifying code to test for recompiler
+_is_recompiler:
+    sh   r0, (_is_recompiler_setv0+2)
+    nop
+    __is_recompiler_setv0:
+    ori  v0, r0, 0x0001
+    ori  t1, r0, 1
+    sh   t1, (_is_recompiler_setv0+2)
+    jr   ra
+    nop
+
+.definelabel is_recompiler, 0xA0000000 | (_is_recompiler & 0x3FFFFFFF)
+.definelabel _is_recompiler_setv0, 0xA0000000 | (__is_recompiler_setv0 & 0x3FFFFFFF)
+
 _n64_assert:
     sw   a0, pAssertFile
     sw   a1, nAssertLine

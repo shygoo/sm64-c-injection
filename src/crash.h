@@ -9,6 +9,7 @@
 
 #define N64_ASSERT(exp) (exp) ? ((void*)0) : _n64_assert(__FILE__, __LINE__, #exp, 1);
 
+extern int is_recompiler(void);
 extern u32 cop0_get_cause(void);
 extern u32 cop0_get_epc(void);
 extern u32 cop0_get_badvaddr(void);

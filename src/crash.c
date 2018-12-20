@@ -104,9 +104,9 @@ void show_crash_screen_and_hang(void)
 
         fb_set_fill_color(31, 31, 31);
 
-        fb_print_str(80, 20, "ERROR");
-        fb_print_int_hex(80, 30, errno, 8);
-        fb_print_str(107, 30, szErrCodes[errno]);
+        fb_print_str(40, 20, "ERROR");
+        fb_print_int_hex(40, 30, errno, 8);
+        fb_print_str(55, 30, szErrCodes[errno]);
 
         // show badvaddr if relevant
         if(errno >= 2 && errno <= 5)
@@ -118,13 +118,22 @@ void show_crash_screen_and_hang(void)
 
             u32 badvaddr = cop0_get_badvaddr();
 
-            fb_print_str(145, 50, "VA");
-            fb_print_int_hex(172, 50, badvaddr, 32);
+            fb_print_str(105, 50, "VA");
+            fb_print_int_hex(120, 50, badvaddr, 32);
         }
 
         // print out gpr registers
-        fb_print_gpr_states(80, 70, szGPRegisters1, &exceptionRegContext[6 + 0]);
-        fb_print_gpr_states(145, 70, szGPRegisters2, &exceptionRegContext[6 + 15*2]);
+        fb_print_gpr_states(40, 70, szGPRegisters1, &exceptionRegContext[6 + 0]);
+        fb_print_gpr_states(105, 70, szGPRegisters2, &exceptionRegContext[6 + 15*2]);
+
+        if(is_recompiler())
+        {
+            fb_set_fill_color(31, 20, 20);
+            fb_print_str(180, 50, "RECOMPILER DETECTED!");
+            fb_print_str(180, 70, "Use interpreter core for");
+            fb_print_str(180, 80, "accurate error reporting.");
+            fb_set_fill_color(31, 31, 31);
+        }
     }
     else
     {
@@ -136,22 +145,22 @@ void show_crash_screen_and_hang(void)
         fb_fill_rect(0, 0, CRASH_SCREEN_W, CRASH_SCREEN_H);
 
         fb_set_fill_color(31, 31, 31);
-        fb_print_str(80, 20, "ASSERT");
+        fb_print_str(40, 20, "ASSERT");
         
-        afterFileX = fb_print_str(80, 30, pAssertFile);
+        afterFileX = fb_print_str(40, 30, pAssertFile);
         fb_print_str(afterFileX, 30, ":");
         fb_print_uint(afterFileX + 5, 30, nAssertLine);
 
         exprBoxWidth = (crash_strlen(pAssertExpression) * 5) + 2;
         fb_set_fill_color(0, 0, 0);
-        fb_fill_rect(80-1, 40-1, exprBoxWidth, 10);
+        fb_fill_rect(40-1, 40-1, exprBoxWidth, 10);
 
         fb_set_fill_color(31, 31, 31);
-        fb_print_str(80, 40, pAssertExpression);
+        fb_print_str(40, 40, pAssertExpression);
     }
 
-    fb_print_str(80, 50, "PC");
-    fb_print_int_hex(95, 50, epc, 32);
+    fb_print_str(40, 50, "PC");
+    fb_print_int_hex(55, 50, epc, 32);
     
     //benchStop = cop0_get_count();
     // show num cycles it took to render
